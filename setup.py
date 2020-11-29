@@ -3,13 +3,14 @@ import setuptools
 
 NAME = "tcpdevice2ppmpconnector"
 
-DEPENDENCIES_ARTIFACTORY = []
+DEPENDENCIES_ARTIFACTORY = [
+    "msgpack"
+]
 
-DEPENDENCIES_SOCIALCODING = {
-    # "https://sourcecode.socialcoding.bosch.com/scm/mh_ees1/mhopcua.git": "",
-    "https://sourcecode.socialcoding.bosch.com/scm/mh_ees1/ppmp.git": "",
-    # "https://sourcecode.socialcoding.bosch.com/scm/mh_ees1/permitverify.git": "",
-    "https://sourcecode.socialcoding.bosch.com/scm/mh_ees1/config.git": "",
+DEPENDENCIES_GITHUB = {
+    "https://github.com/srw2ho/ppmpmessage.git": "",
+    "https://github.com/srw2ho/mqttconnector.git": "",
+    "https://github.com/srw2ho/tomlconfig.git": "",
 }
 
 
@@ -27,8 +28,8 @@ def generate_pip_links_from_url(url, version):
     return url
 
 # create pip compatible links
-DEPENDENCIES_SOCIALCODING = [generate_pip_links_from_url(url, version) for url, version in DEPENDENCIES_SOCIALCODING.items()]
-DEPENDENCIES = DEPENDENCIES_ARTIFACTORY + DEPENDENCIES_SOCIALCODING
+DEPENDENCIES_GITHUB = [generate_pip_links_from_url(url, version) for url, version in DEPENDENCIES_GITHUB.items()]
+DEPENDENCIES = DEPENDENCIES_ARTIFACTORY + DEPENDENCIES_GITHUB
 
 with open("README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
