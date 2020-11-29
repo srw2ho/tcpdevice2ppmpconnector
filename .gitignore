@@ -1,0 +1,14 @@
+.history/*
+OPC-UA.log
+opcua2ppmp/__pycache__/*
+**/.pytest_cache/*
+.vscode/*
+opcua2ppmp/.history/**
+config.ini
+build/**
+opcua2ppmp.egg-info/**
+dist/*.whl
+__pycache__/**
+dist/**
+opcua2ppmp-env/**
+logs/**
