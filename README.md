@@ -19,8 +19,7 @@ The configuration file has to be stored as "%.../tcpdevice2ppmpconnector.toml":
 
 
 ### Usage
-```python
-python -m opcua2ppmp
+
 ```
 
 # Build Docker
