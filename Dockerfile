@@ -1,5 +1,5 @@
-FROM python:slim-buster
-# FROM python:3.8-slim-buster
+# FROM python:slim-buster
+FROM python:3.8-slim-buster
 # FROM python:3.8.0-slim
 
 RUN apt update && apt install -y git gcc
