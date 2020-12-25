@@ -134,7 +134,7 @@ def createASCIIpayload(payload):
     
     buf = io.BytesIO()
     cmdlen =  len (payload) 
-    cmdlenheader = cmdlen.to_bytes(4, byteorder="little")
+    cmdlenheader = cmdlen.to_bytes(4, byteorder="big")
     buf.write(cmdlenheader)
     header = bytes([0x55,0x55])    
     buf.write(header)
