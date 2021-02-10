@@ -27,6 +27,10 @@ from pathlib import Path
 from threading import Thread
 from tomlconfig.tomlutils import TomlParser
 
+from statistics import mean,median
+
+import statistics 
+
 PROJECT_NAME = 'tcpdevice2ppmpconnector'
 
 # load configuration from config file
@@ -39,6 +43,10 @@ MQTT_PORT = toml.get('mqtt.port', 1883)
 MQTT_USERNAME = toml.get('mqtt.username', '')
 MQTT_PASSWORD = toml.get('mqtt.password', '')
 MQTT_TLS_CERT = toml.get('mqtt.tls_cert', '')
+
+CYSTERNE_SENSOR_DISTANCE_MIN = toml.get('Cysterne.sensordistance_min', 28)
+CYSTERNE_SENSOR_DISTANCE_MAX = toml.get('Cysterne.sensordistance_max', 174)
+
 
 LOGFOLDER = "./logs/"
 
@@ -88,6 +96,8 @@ globMQTTClient = MQTTClient(host=MQTT_HOST, port=MQTT_PORT, user=MQTT_USERNAME, 
     
 iothubdevices = dict()
 
+jsonPayloadArray = list()
+Temp_Mean = 0
    
 def createASCIIpayload(payload):
     
@@ -117,6 +127,90 @@ def msgpackdeserialize(payload):
         logger.info(f'msgpackdeserialize Error: {exception}')
 
         return {}
+
+def parseCommand(commands,JsonDict):
+    splittedcommands = commands.split(",")
+    for command in splittedcommands:
+        values = command.split("=")
+        if len(values) > 1:
+            param = values[0]
+            value = values[1]
+            JsonDict[param] = value
+            
+
+def splitintoCommands(payload,JsonDict):
+    strippedpayload = payload.replace(" ", "")
+    commands = strippedpayload.split(";")
+    for command in commands:
+        parseCommand(command,JsonDict )
+
+def calculateMedianValue(JsonDict, Key):   
+    if Key in JsonDict:
+        KeyValue =JsonDict[Key]
+       
+        val =[ item[Key] for item in jsonPayloadArray if Key in item]
+        val.append(KeyValue)
+        startRange = 0
+        rangelen = len(val)
+        if rangelen > 5:  startRange = rangelen-5     
+        val_ =[val[x] for x in range(startRange, rangelen) ]
+        if len(val_) > 2:
+            medianvalue = statistics.median(val_)
+            JsonDict[f'{Key}_Mean'] = medianvalue
+            return True
+        else: JsonDict[f'{Key}_Mean'] = KeyValue
+    return False
+
+def getlastMedianValue(Key):   
+    val =[ item[Key] for item in jsonPayloadArray if Key in item]
+    rangelen = len(val)
+    if rangelen > 0:  
+        medianvalue = val[rangelen-1]
+        return True, medianvalue
+    return False , 0
+    
+def calculateCysternData(JsonDict):    
+
+
+    HC_SR04_12_Mean = -1
+    if calculateMedianValue(JsonDict, "HC_SR04.12"):
+        HC_SR04_12_Mean = JsonDict["HC_SR04.12_Mean"]
+        valueOk, Temp_Mean =getlastMedianValue("Temp_Mean")
+        if valueOk:
+            VinMeterProSec = 331.5 + (0.6 * Temp_Mean);
+            MeasureDistance = (VinMeterProSec * HC_SR04_12_Mean) / (10000 * 2);
+            SensorDistance = CYSTERNE_SENSOR_DISTANCE_MAX-MeasureDistance
+            JsonDict["MeasureDistance"] = SensorDistance
+            JsonDict["SensorDistance"] = SensorDistance
+            if CYSTERNE_SENSOR_DISTANCE_MAX > CYSTERNE_SENSOR_DISTANCE_MIN :
+                fillingLevel = (SensorDistance*100) / (CYSTERNE_SENSOR_DISTANCE_MAX - CYSTERNE_SENSOR_DISTANCE_MIN)
+                JsonDict["fillingLevel"] = fillingLevel
+
+    if calculateMedianValue(JsonDict, "Temp"):
+        Temp_Mean = JsonDict["Temp_Mean"]
+
+     
+        # jsonPayloadArray["Distance"] = Distance
+    if calculateMedianValue(JsonDict, "Humid"):
+             Humid_Mean = JsonDict["Humid_Mean"]
+    if calculateMedianValue(JsonDict, "Press"):
+        Press_Mean = JsonDict["Press_Mean"]
+
+
+
+
+    
+def doBinaryCommands(data):
+    JsonDict = dict()
+    decodeddata = data._payload.decode("utf-8") 
+    splitintoCommands(decodeddata,JsonDict)
+    
+    JsonfloatDict = {key: float (value) for key, value in JsonDict.items() }
+    
+    if data._TCPClient.target.get_host()== "Zysterne":
+        calculateCysternData(JsonfloatDict)
+    
+    return JsonfloatDict 
         
 def doSolar(payload):
     return 
@@ -143,12 +237,17 @@ def createASCIIpayload(payload):
     return buf.getvalue()
 
     
-def sendMQTTPayload(data):
+def sendMQTTPayload(data,jsonpayload):
+    
+    jsonPayloadArray.append(jsonpayload)
+    if len (jsonPayloadArray) > 50:
+        del jsonPayloadArray[0]
+                    
     global iothubdevices
     global globMQTTClient
     deviceId = data._TCPClient.target.host 
-    decodeddata = data._payload.decode("utf-8") 
-    jsonpayload = json.loads(data._payload)
+    # decodeddata = data._payload.decode("utf-8") 
+    # jsonpayload = json.loads(data._payload)
 
     acttime = local_now()
      
@@ -194,11 +293,16 @@ async def readinqueue(in_queue):
             data = await in_queue.get()
             if data._msgPayloadType == msgPayloadType.ASCIISOLAR:
                 doSolar(data)
+            if data._msgPayloadType == msgPayloadType.BINARY:
+                jsonPayload = doBinaryCommands(data)
+                sendMQTTPayload(data,jsonPayload)
+                
             if data._msgPayloadType == msgPayloadType.MSGPACKSOLAR:
                 package = domsgPackSolar(data)
                 print (package)
             if data._msgPayloadType == msgPayloadType.JSONSOLAR:
-                sendMQTTPayload(data)
+                jsonPayload = doJsonPackSolar(data)
+                sendMQTTPayload(data,jsonPayload)
 
             await asyncio.sleep(0.1)
         except Exception as ex:
