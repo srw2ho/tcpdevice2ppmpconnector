@@ -7,7 +7,6 @@ DEPENDENCIES_ARTIFACTORY = [
     "msgpack"
 ]
 
-https://github.com/srw2ho/tcpconnector
 
 DEPENDENCIES_GITHUB = {
     "https://github.com/srw2ho/tcpconnector.git": "",
