@@ -12,6 +12,8 @@ DEPENDENCIES_GITHUB = {
     "https://github.com/srw2ho/tcpconnector.git": "",
     "https://github.com/srw2ho/ppmpmessage.git": "",
     "https://github.com/srw2ho/tomlconfig.git": "",
+    "https://github.com/srw2ho/mqttconnector.git": "",
+
 }
 
 
@@ -37,7 +39,8 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name=NAME,
-    version_format='{tag}.dev{commitcount}+{gitsha}',
+    # version_format='{tag}.dev{commitcount}+{gitsha}',
+    version_config=True,
     author="srw2ho",
     author_email="",
     description="",
@@ -47,6 +50,9 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_data={},
     install_requires=DEPENDENCIES,
+    setup_requires=[
+        'setuptools-git-version',
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: Other/Proprietary License"
