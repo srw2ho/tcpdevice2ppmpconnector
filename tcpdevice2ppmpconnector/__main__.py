@@ -245,7 +245,7 @@ def sendMQTTPayload(data,jsonpayload):
                     
     global iothubdevices
     global globMQTTClient
-    deviceId = data._TCPClient.target.host 
+    deviceId = data._TCPClient.target.get_aliashost() 
     # decodeddata = data._payload.decode("utf-8") 
     # jsonpayload = json.loads(data._payload)
 
@@ -310,9 +310,9 @@ async def readinqueue(in_queue):
             logger.info(f'readinqueue error:{ex}')
 
 
-async def run_tcpconnector(host, port, _timeout):
+async def run_tcpconnector(host, aliashost, port, _timeout):
     
-    target = TCPTarget (host,port,timeout=_timeout)
+    target = TCPTarget (host,aliashost, port,timeout=_timeout)
     globtcpclient = TCPClient(target)
     await globtcpclient.connect(on_reciveEvent_batch=readinqueue, on_connect_event= connected)
     
@@ -321,11 +321,11 @@ async def run_tcpconnector(host, port, _timeout):
 
 
 
-async def run_alltcpconnectors(hosts, ports, timeoutsinsec):
+async def run_alltcpconnectors(hosts, aliashosts, ports, timeoutsinsec):
     try:
         loop = asyncio.get_event_loop()
-        for host, port, tmoutinsec in zip(hosts, ports, timeoutsinsec):
-            tskhandle = asyncio.create_task(run_tcpconnector(host, port, tmoutinsec) ) 
+        for host, aliashost, port, tmoutinsec in zip(hosts,aliashosts, ports, timeoutsinsec):
+            tskhandle = asyncio.create_task(run_tcpconnector(host, aliashost, port, tmoutinsec) ) 
             # tskhandle = loop.create_task(run_tcpconnector(host, port, timeoutsinsec) )
             asynctaskhandls.append(tskhandle)
                 # loop.run_until_complete(run_tcpconnector(host, port, timeoutsinsec))
@@ -346,7 +346,10 @@ async def run_alltcpconnectors(hosts, ports, timeoutsinsec):
 def start_tcpconnections():
     global globMQTTClient
     hosts = toml.get('tcpdevices.hosts', ['localhost'])
+    aliashosts = toml.get('tcpdevices.aliashosts', ['localhost'])
     ports = toml.get('tcpdevices.ports', [4840])
+     
+    
     timeoutsinsec = toml.get('tcpdevices.timeoutsinsecs', [10])
 
     # send complete config list for all devices (as gateway, not only single PLC device)
@@ -363,7 +366,7 @@ def start_tcpconnections():
     try:
         # loop.create_task(run_alltcpconnectors(hosts, ports, timeoutsinsec))
         # loop.run_forever()
-        loop.run_until_complete(run_alltcpconnectors(hosts, ports, timeoutsinsec))
+        loop.run_until_complete(run_alltcpconnectors(hosts, aliashosts, ports, timeoutsinsec))
    
     except KeyboardInterrupt:
         print("Receiving has stopped.")
